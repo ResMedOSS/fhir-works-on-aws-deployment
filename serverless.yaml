@@ -21,6 +21,9 @@ custom:
   enableESHardDelete: ${opt:enableESHardDelete, 'false'}
   patientCompartmentFileV3: 'patientCompartmentSearchParams.3.0.2.json'
   patientCompartmentFileV4: 'patientCompartmentSearchParams.4.0.1.json'
+  opMetricSubscriberEnabled: ${env:OP_METRIC_SUBSCRIBER_ENABLED, 'true'}
+  opMetricSubscriberPushInterval: ${env:OP_METRIC_SUBSCRIBER_PUSH_INTERVAL_MS, '60000'}
+  opMetricSubscriberSendCount: ${env:OP_METRIC_SUBSCRIBER_SEND_COUNT, '25'}
   bundle:
     packager: yarn
     linting: false # We use our own linter
@@ -115,6 +118,9 @@ functions:
       EXPORT_STATE_MACHINE_ARN: !Ref BulkExportStateMachine
       PATIENT_COMPARTMENT_V3: ${self:custom.patientCompartmentFileV3}
       PATIENT_COMPARTMENT_V4: ${self:custom.patientCompartmentFileV4}
+      OP_METRIC_SUBSCRIBER_ENABLED: ${self:custom.opMetricSubscriberEnabled}
+      OP_METRIC_SUBSCRIBER_PUSH_INTERVAL_MS: ${self:custom.opMetricSubscriberPushInterval}
+      OP_METRIC_SUBSCRIBER_SEND_COUNT: ${self:custom.opMetricSubscriberSendCount}
 
   ddbToEs:
     timeout: 300
@@ -684,6 +690,11 @@ resources:
                       Resource:
                         - !ImportValue 'fhir-service-validator-lambda-${self:custom.stage}'
                     - !Ref AWS::NoValue
+                  - Effect: Allow
+                    Action:
+                      - 'cloudwatch:PutMetricData'
+                    Resource:
+                      - '*'
       DdbToEsLambdaRole:
         Type: AWS::IAM::Role
         Metadata:

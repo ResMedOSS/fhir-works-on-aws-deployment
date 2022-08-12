@@ -26,6 +26,8 @@ import SubscriptionValidator from 'fhir-works-on-aws-routing/lib/router/validati
 import getAllowListedSubscriptionEndpoints from './subscriptions/allowList';
 import RBACRules from './RBACRules';
 import { loadImplementationGuides } from './implementationGuides/loadCompiledIGs';
+import Broker from './operationHooks/operationBroker';
+import MetricSubscriber from './operationHooks/metricSubscriber';
 
 const { IS_OFFLINE, ENABLE_MULTI_TENANCY, ENABLE_SUBSCRIPTIONS } = process.env;
 
@@ -79,6 +81,12 @@ const OAuthUrl =
     process.env.OAUTH2_DOMAIN_ENDPOINT === '[object Object]' || process.env.OAUTH2_DOMAIN_ENDPOINT === undefined
         ? 'https://OAUTH2.com'
         : process.env.OAUTH2_DOMAIN_ENDPOINT;
+
+// setup the operation hooks implementation
+const broker = new Broker();
+
+// eslint-disable-next-line no-new
+new MetricSubscriber(broker);
 
 export const getFhirConfig = async (): Promise<FhirConfig> => {
     if (enableSubscriptions) {
@@ -146,6 +154,7 @@ export const getFhirConfig = async (): Promise<FhirConfig> => {
                   tenantIdClaimPath: 'custom:tenantId',
               }
             : undefined,
+        operationBroker: broker,
     };
 };
 
