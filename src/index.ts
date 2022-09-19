@@ -20,7 +20,7 @@ process.on('exit', partial(logProcessEvent, 'exit'));
 process.on('SIGTERM', partial(logProcessEvent, 'SIGTERM'));
 process.on('SIGINT', partial(logProcessEvent, 'SIGINT'));
 
-const ensureAsyncInit = async (initPromise: Promise<any>): Promise<void> => {
+export const ensureAsyncInit = async (initPromise: Promise<any>): Promise<void> => {
     try {
         await initPromise;
     } catch (e) {
@@ -41,9 +41,7 @@ async function asyncServerless() {
 
 const serverlessHandler: Promise<any> = asyncServerless();
 
-exports.handler = async (event: any = {}, context: any = {}): Promise<any> => {
+export const handler = async (event: any = {}, context: any = {}): Promise<any> => {
     await ensureAsyncInit(serverlessHandler);
     return (await serverlessHandler)(event, context);
 };
-
-export default ensureAsyncInit;
