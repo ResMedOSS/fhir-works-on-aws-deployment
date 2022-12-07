@@ -20,8 +20,8 @@ Resources:
               Service: 'lambda.amazonaws.com'
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+        - arn:aws-cn:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws-cn:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: glueAccess
           PolicyDocument:
@@ -133,7 +133,7 @@ Resources:
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+        - arn:aws-cn:iam::aws:policy/service-role/AWSGlueServiceRole
       Policies:
         - PolicyName: ddbAccess
           PolicyDocument:
@@ -158,11 +158,11 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref BulkExportResultsBucket, '/*']]
+                Resource: !Join ['', ['arn:aws-cn:s3:::', !Ref BulkExportResultsBucket, '/*']]
               - Effect: Allow
                 Action:
                   - s3:GetObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref GlueScriptsBucket, '/*']]
+                Resource: !Join ['', ['arn:aws-cn:s3:::', !Ref GlueScriptsBucket, '/*']]
               - Effect: Allow
                 Action:
                   - kms:Decrypt
@@ -181,7 +181,7 @@ Resources:
                   - logs:PutLogEvents
                   - logs:AssociateKmsKey
                 Resource:
-                  - arn:aws:logs:*:*:/aws-glue/*
+                  - arn:aws-cn:logs:*:*:/aws-glue/*
               - Effect: Allow
                 Action:
                   - kms:Decrypt
@@ -246,7 +246,7 @@ Resources:
         Statement:
           - Effect: 'Allow'
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              AWS: 'arn:aws-cn:iam::723953450737:user/resmedCHP'
             Action: 'sts:AssumeRole'
       Policies:
         - PolicyName: s3Access
@@ -269,8 +269,8 @@ Resources:
               Service: 'lambda.amazonaws.com'
             Action: 'sts:AssumeRole'
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+        - arn:aws-cn:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws-cn:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: ddbAccess
           PolicyDocument:
@@ -306,8 +306,8 @@ Resources:
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess
+        - arn:aws-cn:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws-cn:iam::aws:policy/AWSXrayWriteOnlyAccess
       Policies:
         - PolicyName: s3Access
           PolicyDocument:
@@ -317,4 +317,4 @@ Resources:
                 Action:
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource: !Join ['', ['arn:aws:s3:::', !Ref GlueScriptsBucket, '/*']]
+                Resource: !Join ['', ['arn:aws-cn:s3:::', !Ref GlueScriptsBucket, '/*']]

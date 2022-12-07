@@ -4,98 +4,12 @@
 #
 
 Resources:
-  KibanaUserPool:
-    Type: AWS::Cognito::UserPool
-    Condition: isDev
-    Properties:
-      AdminCreateUserConfig:
-        AllowAdminCreateUserOnly: true
-      AutoVerifiedAttributes:
-        - email
-      UserPoolName: !Sub '${AWS::StackName}-Kibana'
-      Schema:
-        - AttributeDataType: String
-          Name: email
-          Required: true
-        - AttributeDataType: String
-          Name: cc_confirmed
-  KibanaUserPoolDomain:
-    Type: AWS::Cognito::UserPoolDomain
-    Condition: isDev
-    Properties:
-      UserPoolId: !Ref KibanaUserPool
-      Domain: !Join ['-', [kibana, !Ref Stage, !Ref AWS::AccountId]]
-  KibanaUserPoolClient:
-    Type: AWS::Cognito::UserPoolClient
-    Condition: isDev
-    Properties:
-      ClientName: !Sub '${AWS::StackName}-KibanaClient'
-      GenerateSecret: false
-      UserPoolId: !Ref KibanaUserPool
-      ExplicitAuthFlows:
-        - ADMIN_NO_SRP_AUTH
-        - USER_PASSWORD_AUTH
-      PreventUserExistenceErrors: ENABLED
-  KibanaIdentityPool:
-    Type: AWS::Cognito::IdentityPool
-    Condition: isDev
-    Properties:
-      IdentityPoolName: !Sub '${AWS::StackName}-KibanaIDPool'
-      AllowUnauthenticatedIdentities: false
-      CognitoIdentityProviders:
-        - ClientId: !Ref KibanaUserPoolClient
-          ProviderName: !GetAtt KibanaUserPool.ProviderName
-  KibanaCognitoRole:
-    Type: AWS::IAM::Role
-    Condition: isDev
-    Properties:
-      ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonESCognitoAccess'
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Principal:
-              Service: 'es.amazonaws.com'
-            Action:
-              - 'sts:AssumeRole'
-  AdminKibanaAccessRole:
-    Type: 'AWS::IAM::Role'
-    Condition: isDev
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: 'Allow'
-            Principal:
-              Federated: 'cognito-identity.amazonaws.com'
-            Action:
-              - 'sts:AssumeRoleWithWebIdentity'
-            Condition:
-              StringEquals:
-                'cognito-identity.amazonaws.com:aud': !Ref KibanaIdentityPool
-              'ForAnyValue:StringLike':
-                'cognito-identity.amazonaws.com:amr': authenticated
-  IdentityPoolRoleAttachment:
-    Type: AWS::Cognito::IdentityPoolRoleAttachment
-    Condition: isDev
-    Properties:
-      IdentityPoolId: !Ref KibanaIdentityPool
-      Roles:
-        authenticated: !GetAtt AdminKibanaAccessRole.Arn
   SearchLogs:
     Type: AWS::Logs::LogGroup
     Properties:
       LogGroupName: !Sub '${AWS::StackName}-search-logs'
-  SearchLogResourcePolicy:
-    Type: AWS::Logs::ResourcePolicy
-    DependsOn: SearchLogs
-    Properties:
-      PolicyDocument: !Sub '{ "Version": "2012-10-17", "Statement": [{ "Sid": "", "Effect": "Allow", "Principal": { "Service": "es.amazonaws.com"}, "Action":[ "logs:PutLogEvents","logs:CreateLogStream"],"Resource": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AWS::StackName}-search-logs:*"}]}'
-      PolicyName: !Sub '${AWS::StackName}-search-logs-resource-policy'
   ElasticSearchDomain:
     Type: AWS::Elasticsearch::Domain
-    DependsOn: SearchLogResourcePolicy
     Metadata:
       cfn_nag:
         rules_to_suppress:
@@ -129,49 +43,15 @@ Resources:
       NodeToNodeEncryptionOptions:
         Enabled: true
       SnapshotOptions: !If [isDev, !Ref AWS::NoValue, { AutomatedSnapshotStartHour: 0 }]
-      CognitoOptions: !If
-        - isDev
-        - Enabled: true
-          IdentityPoolId: !Ref KibanaIdentityPool
-          UserPoolId: !Ref KibanaUserPool
-          RoleArn: !GetAtt KibanaCognitoRole.Arn
-        - !Ref AWS::NoValue
-      AccessPolicies: !If
-        - isDev
-        - Version: '2012-10-17'
-          Statement:
-            - Effect: Allow
-              Principal:
-                AWS:
-                  - !GetAtt AdminKibanaAccessRole.Arn
-              Action: 'es:*'
-              Resource:
-                - !Sub 'arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/*'
-            - Effect: Allow
-              Principal:
-                AWS:
-                  - !Join [
-                      '/',
-                      [
-                        !Sub 'arn:${AWS::Partition}:sts::${AWS::AccountId}:assumed-role',
-                        !Ref KibanaCognitoRole,
-                        CognitoIdentityCredentials,
-                      ],
-                    ]
-              Action: es:*
-              Resource:
-                Fn::Sub: arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/*
-        - !Ref AWS::NoValue
-      LogPublishingOptions:
-        ES_APPLICATION_LOGS:
-          CloudWatchLogsLogGroupArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AWS::StackName}-search-logs:*"
-          Enabled: true
-        SEARCH_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AWS::StackName}-search-logs:*"
-          Enabled: true
-        INDEX_SLOW_LOGS:
-          CloudWatchLogsLogGroupArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:${AWS::StackName}-search-logs:*"
-          Enabled: true
+      AccessPolicies:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Action: 'es:*'
+            Principal:
+              AWS: 'arn:aws-cn:iam::723953450737:user/resmedCHP'
+            Resource:
+              - !Sub 'arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/*'
   UpdateSearchMappingsCustomResource:
     DependsOn: ElasticSearchDomain
     Type: AWS::CloudFormation::CustomResource

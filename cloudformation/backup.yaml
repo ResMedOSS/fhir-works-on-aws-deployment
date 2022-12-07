@@ -17,7 +17,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              'AWS': { 'Fn::Sub': 'arn:${AWS::Partition}:iam::${AWS::AccountId}:root' }
+              'AWS': 'arn:aws-cn:iam::723953450737:user/resmedCHP'
             Action:
               - kms:*
             Resource: '*'

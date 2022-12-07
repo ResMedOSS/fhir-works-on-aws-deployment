@@ -40,6 +40,7 @@ provider:
   name: aws
   region: us-west-2
   stage: dev
+  endpointType: REGIONAL
   runtime: nodejs14.x
   architecture: x86_64
   memorySize: 512
@@ -56,7 +57,7 @@ provider:
     FHIR_BINARY_BUCKET: !Ref FHIRBinaryBucket
     ELASTICSEARCH_DOMAIN_ENDPOINT: !Join ['', ['https://', !GetAtt ElasticSearchDomain.DomainEndpoint]]
     OAUTH2_DOMAIN_ENDPOINT:
-      !Join ['', ['https://', !Ref UserPoolDomain, !Sub '.auth.${AWS::Region}.amazoncognito.com/oauth2']]
+      !Join ['', ['https://', 'test/oauth2']]
     EXPORT_RESULTS_BUCKET: !Ref BulkExportResultsBucket
     EXPORT_RESULTS_SIGNER_ROLE_ARN: !GetAtt ExportResultsSignerRole.Arn
     CUSTOM_USER_AGENT: 'AwsSolution/SO0128/GH-v5.1.0'
@@ -90,16 +91,10 @@ functions:
     role: FhirServerLambdaRole
     events:
       - http:
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId: !Ref ApiGatewayAuthorizer
           method: ANY
           path: /
           private: true
       - http:
-          authorizer:
-            type: COGNITO_USER_POOLS
-            authorizerId: !Ref ApiGatewayAuthorizer
           method: ANY
           path: '{proxy+}'
           private: true
@@ -110,7 +105,6 @@ functions:
           method: GET
           path: /tenant/{tenantId}/metadata
     handler: src/index.handler
-    provisionedConcurrency: 5
     environment:
       EXPORT_STATE_MACHINE_ARN: !Ref BulkExportStateMachine
       PATIENT_COMPARTMENT_V3: ${self:custom.patientCompartmentFileV3}
@@ -135,7 +129,6 @@ functions:
   subscriptionsMatcher:
     timeout: 20
     memorySize: !If [isDev, 512, 1024]
-    reservedConcurrency: !If [isDev, 10, 200]
     runtime: nodejs14.x
     description: 'Match ddb events against active Subscriptions and emit notifications'
     role: SubscriptionsMatcherLambdaRole
@@ -248,10 +241,6 @@ resources:
         Type: String
         Default: ${self:custom.stage}
         Description: 'The deployment stage (e.g. dev, qa, prod). Default: dev'
-      CognitoOAuthDefaultRedirectURL:
-        Type: String
-        Default: ${self:custom.oauthRedirect}
-        Description: "Cognito's default OAuth redirect URL used for User Pool. Default:  ${self:custom.oauthRedirect}"
       ExportGlueWorkerType:
         Type: String
         Default: 'G.2X'
@@ -367,6 +356,12 @@ resources:
           smallEc2: c6g.large.elasticsearch
           largeEc2: m6g.large.elasticsearch
         us-gov-west-1:
+          smallEc2: c6g.large.elasticsearch
+          largeEc2: m6g.large.elasticsearch
+        cn-north-1:
+          smallEc2: c6g.large.elasticsearch
+          largeEc2: m6g.large.elasticsearch
+        cn-northwest-1:
           smallEc2: c6g.large.elasticsearch
           largeEc2: m6g.large.elasticsearch
   - Resources:
@@ -487,19 +482,6 @@ resources:
             KMSMasterKeyId: !Ref DynamodbKMSKey
             SSEEnabled: true
             SSEType: 'KMS'
-      ApiGatewayAuthorizer:
-        Type: AWS::ApiGateway::Authorizer
-        Properties:
-          AuthorizerResultTtlInSeconds: 300
-          IdentitySource: method.request.header.Authorization
-          RestApiId: !Ref ApiGatewayRestApi
-          Type: COGNITO_USER_POOLS
-          Name: !Join ['-', [fhir-works-authorizer, !Ref Stage, !Ref AWS::Region]]
-          ProviderARNs:
-            - !Join [
-                '',
-                [!Sub 'arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/', !Ref UserPool],
-              ]
       FHIRBinaryBucket:
         Type: AWS::S3::Bucket
         DeletionPolicy: Retain
@@ -998,17 +980,17 @@ resources:
                 Action:
                   - apigateway:GET
                   - apigateway:PATCH
-                Resource: !Sub 'arn:${AWS::Partition}:apigateway:${AWS::Region}::/account'
+                Resource: !Sub 'arn:aws-cn:apigateway:cn-northwest-1::/account'
               - Effect: Allow
                 Action:
                   - iam:CreateRole
                   - iam:AttachRolePolicy
                   - iam:ListAttachedRolePolicies
                   - iam:PassRole
-                Resource: !Sub 'arn:${AWS::Partition}:iam::${AWS::AccountId}:role/serverlessApiGatewayCloudWatchRole'
+                Resource: !Sub 'arn:aws-cn:iam::${AWS::AccountId}:role/serverlessApiGatewayCloudWatchRole'
                 Condition:
                   ArnEqualsIfExists:
-                    iam:PolicyARN: 'arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs'
+                    iam:PolicyARN: 'arn:aws-cn:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs'
   - extensions:
       # Add custom permission boundary to role serverless uses for creating Cloudwatch publishing role
       IamRoleCustomResourcesLambdaExecution:
@@ -1084,16 +1066,9 @@ resources:
   - ${file(cloudformation/alarms.yaml)}
   - ${file(cloudformation/kms.yaml)}
   - ${file(cloudformation/elasticsearch.yaml)}
-  - ${file(cloudformation/cognito.yaml)}
   - ${file(cloudformation/bulkExport.yaml)}
   - ${file(cloudformation/subscriptions.yaml)}
   - Outputs:
-      UserPoolId:
-        Description: User pool id for the provisioning users.
-        Value: !Ref UserPool
-      UserPoolAppClientId:
-        Description: App client id for the provisioning users.
-        Value: !Ref UserPoolClient
       FHIRBinaryBucket:
         Description: S3 Bucket for storing Binary Objects
         Value: !Ref FHIRBinaryBucket
@@ -1113,14 +1088,6 @@ resources:
         Condition: isDev
         Description: ElasticSearch Kibana endpoint
         Value: !Join ['', ['https://', !GetAtt ElasticSearchDomain.DomainEndpoint, '/_plugin/kibana']]
-      ElasticSearchKibanaUserPoolId:
-        Condition: isDev
-        Description: User pool id for the provisioning ES Kibana users.
-        Value: !Ref KibanaUserPool
-      ElasticSearchKibanaUserPoolAppClientId:
-        Condition: isDev
-        Description: App client id for the provisioning ES Kibana users.
-        Value: !Ref KibanaUserPoolClient
       CloudwatchAccessLogGroup:
         Description: Cloudwatch Access log group for storing request/responses for auditing purposes
         Value: !Ref ApiGatewayLogGroup

@@ -10,6 +10,7 @@ Resources:
       Description: Encryption key for rest hook queue that can be used by SNS
       EnableKeyRotation: true
       KeyPolicy:
+        Version: '2012-10-17'
         Statement:
           - Effect: Allow
             Principal:
@@ -21,9 +22,8 @@ Resources:
           - Sid: Allow administration of the key
             Effect: Allow
             Principal:
-              AWS: !Join ['', ['arn:aws:iam::', !Ref AWS::AccountId, ':root']]
-            Action:
-              - 'kms:*'
+              AWS: 'arn:aws-cn:iam::723953450737:user/resmedCHP'
+            Action: 'kms:*'
             Resource: '*'
 
   RestHookQueue:
